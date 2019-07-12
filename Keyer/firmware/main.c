@@ -129,9 +129,6 @@ int main(void)
 
         /* wait for keys to be pressed */
         while ( !( (PINA & 3) | (PINB & 15) | (PIND & 28) ) );
-        /* a_states = (PINA & 3); // mask for the a pins we're using
-        b_states = (PINB & 15);
-        d_states = (PIND & 28); */
 
         if (!(PINB & (1 << PB0)) && key_check[0]) {    // is switch closed?
             TransmitByte('0');     // switch is closed, transmit key
@@ -183,67 +180,52 @@ int main(void)
             TransmitByte('b');
             key_check[9] = 1;
         }
-        // While the pins in the A, B, and D register we're using maintain the
-        // same state, wait.
-        // while ( !( (PINA & ~a_states ) | (PINB & ~b_states) | (PIND & ~d_states) ) );
-        //while (( (PINA & 3) | (PINB & 15) | (PIND & 28) ) );
-        //while ( ( (PINA & 3) | (PINB & 15) | (PIND & 28) ) );
-        // check each key
+
         if ( (PINB & (1 << PB0)) && key_check[0] ){
-        // if ( key_check[0] ) {
             TransmitByte('8');
             TransmitByte('2');
             key_check[0] = 0;
         }
         if ( (PINB & (1 << PB1)) && key_check[1] ){
-        //if ( key_check[1] ) {
             TransmitByte('8');
             TransmitByte('3');
             key_check[1] = 0;
         }
-        //if ( key_check[2] ) {
         if ( (PINB & (1 << PB2)) && key_check[2] ){
             TransmitByte('8');
             TransmitByte('4');
             key_check[2] = 0;
         }
-        //if ( key_check[3] ) {
         if ( (PINB & (1 << PB3)) && key_check[3] ){
             TransmitByte('8');
             TransmitByte('5');
             key_check[3] = 0;
         }
-        //if ( key_check[4] ) {
         if ( (PIND & (1 << PD3)) && key_check[4] ){
             TransmitByte('8');
             TransmitByte('6');
             key_check[4] = 0;
         }
-        //if ( key_check[5] ) {
         if ( (PIND & (1 << PD4)) && key_check[5] ){
             TransmitByte('8');
             TransmitByte('7');
             key_check[5] = 0;
         }
-        //if ( key_check[6] ) {
         if ( (PIND & (1 << PD2)) && key_check[6] ){
             TransmitByte('8');
             TransmitByte('8');
             key_check[6] = 0;
         }
-        //if ( key_check[7] ) {
         if ( (PINB & (1 << PB4)) && key_check[7] ){
             TransmitByte('8');
             TransmitByte('9');
             key_check[7] = 0;
         }
-        //if ( key_check[8] ) {
         if ( (PINA & (1 << PA1)) && key_check[8] ){
             TransmitByte('8');
             TransmitByte('a');
             key_check[8] = 0;
         }
-        //if ( key_check[9] ) {
         if ( (PINA & (1 << PA0)) && key_check[9] ){
             TransmitByte('8');
             TransmitByte('b');
@@ -254,51 +236,6 @@ int main(void)
     }
     return 0;
 }
-
-
-/**
- * \file
- *
- * \brief UART Polling example
- *
- * Copyright (C) 2016 Atmel Corporation. All rights reserved.
- *
- * \page License
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice,
- *    this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
- *
- * 3. The name of Atmel may not be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * 4. This software may only be redistributed and used in connection with an
- *    Atmel microcontroller product.
- *
- * THIS SOFTWARE IS PROVIDED BY ATMEL "AS IS" AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT ARE
- * EXPRESSLY AND SPECIFICALLY DISCLAIMED. IN NO EVENT SHALL ATMEL BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- *
- */
-/*
- * Support and FAQ: visit <a href="http://www.atmel.com/design-support/">Atmel Support</a>
- */
-
-
 
 /* Initialize UART */
 void InitUART(unsigned char ubrr_val)
