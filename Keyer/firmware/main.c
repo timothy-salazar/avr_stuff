@@ -12,8 +12,7 @@
 
 *
 * Title: AVR306: Using the AVR USART on tinyAVR and megaAVR devices
-* URL: http://ww1.microchip.com/downloads/en/AppNotes/Atmel-1451-Using-the-AVR\
--USART-on-tinyAVR-and-megaAVR-devices_ApplicationNote_AVR306.pdf
+* URL: http://ww1.microchip.com/downloads/en/AppNotes/Atmel-1451-Using-the-AVR-USART-on-tinyAVR-and-megaAVR-devices_ApplicationNote_AVR306.pdf
 * Accessed: 13 June 2019
 * Comments: Helped choose settings appropriate for application
 *
@@ -63,23 +62,57 @@
 #include "avr/io.h"
 /* Value taken from Table 3-2, pg 5 of:
 * AVR306: Using the AVR USART on tinyAVR and megaAVR devices
+* http://ww1.microchip.com/downloads/en/AppNotes/
+* Atmel-1451-Using-the-AVR-USART-on-tinyAVR-and-megaAVR-devices_ApplicationNote_AVR306.pdf
+*
 * Assumes that we're using U2X and a baud rate of 9600
 */
 #define UBRR_VAL    12
 /* Prototypes */
+// Setup
 void InitUART(unsigned char ubrr_val);
-
+void InitPins(void);
+// Read state of keys
+unsigned int ReadKeys(unsigned int key_state);
+// Sending keys over UART to Bluefruit
+void TransmitKeys(unsigned int key_state);
+void SendString(char message[]);
 void TransmitByte(unsigned char data);
+// Receiving reply over UART
+unsigned char ReceiveByte(void);
+// Utility
+void Delay(void);
 
-int key_check[10];
+unsigned int key_state = 0;
+char zero_message[6] = {'k', 'e', 'y', ' ', '0', '\0'};
+char one_message[6] = {'k', 'e', 'y', ' ', '1', '\0'};
+char two_message[6] = {'k', 'e', 'y', ' ', '2', '\0'};
+char three_message[6] = {'k', 'e', 'y', ' ', '3', '\0'};
+char four_message[6] = {'k', 'e', 'y', ' ', '4', '\0'};
+char five_message[6] = {'k', 'e', 'y', ' ', '5', '\0'};
+char six_message[6] = {'k', 'e', 'y', ' ', '6', '\0'};
+char seven_message[6] = {'k', 'e', 'y', ' ', '7', '\0'};
+char eight_message[6] = {'k', 'e', 'y', ' ', '8', '\0'};
+char nine_message[6] = {'k', 'e', 'y', ' ', '9', '\0'};
 
+char keyboard_cmd[16] = {'A','T','+','B','L','E','K','E','Y','B','O','A','R','D','=', '\0'};
+char end_string[3] = {'\r', '\n', '\0'};
 
-int main(void)
+/* Initialize UART */
+void InitUART(unsigned char ubrr_val)
 {
-    /* Set the baudrate to 9800 bps using internal 8MHz RC Oscillator */
+    /* Set the baud rate */
+    UBRRH = (unsigned char)(ubrr_val>>8);
+    UBRRL = (unsigned char)ubrr_val;
+    /* Enable UART receiver and transmitter */
+    UCSRB = ( (1<<RXEN) | (1<<TXEN) );
+    /* Enable U2X (double speed) UART */
+    UCSRA = (1<<U2X) | UCSRA;
+}
 
-    InitUART(UBRR_VAL);
-
+/* Initialize Pins */
+void InitPins(void)
+{
     // A REGISTER
 
     // input pin: black wire, key 8
@@ -100,10 +133,25 @@ int main(void)
     // input pin: blue wire, key 5
     DDRD &= ~(1 << PD4);  // switch on pin 8 (PD4)
     PORTD |= (1 << PD4);  // enable pull-up resistor
-    // input pin: green wire, key 0
+
+    // output pin: MODE
+    /* Connected to Mod pin on bluefruit. If it is driven high, the 
+       bluefruit module will enter command mode. If it is driven low, the
+       bluefruit module will enter data mode.  */
+    DDRD |= (1 << PD5); // Set this pin as an output
+    PORTD |= (1 << PD5); // Output high (source)
+
+    // output pin: CTS
+    /* Connected to CTS pin on bluefruit. If it is driven high, the 
+       bluefruit module will wait to send data to the MCU. If it's 
+       driven low, the module will know that it's clear to send (exactly
+       what's on the label)  */
+    DDRD |= (1 << PD6); // Set this pin as an output
+    PORTD |= (1 << PD6); // Start in "not clear to send" mode
 
     // B REGISTER
 
+    // input pin: green wire, key 0
     DDRB &= ~(1 << PB0);  // switch on pin 12 (PB0)
     PORTB |= (1 << PB0);  // enable pull-up resistor
     // input pin: yellow wire, key 1
@@ -118,135 +166,125 @@ int main(void)
     // input pin: brown wire, key 7
     DDRB &= ~(1 << PB4);  // switch on pin 16 (PB4)
     PORTB |= (1 << PB4);  // enable pull-up resistor
+    Delay();
+}
+
+int main(void)
+{
+    /* Set the baudrate to 9800 bps using internal 8MHz RC Oscillator */
+
+    InitUART(UBRR_VAL);
+
+    /* Set the input/output pins and enable pull-up resistors */
+    InitPins();
 
 
-    int i = 0;
-    for ( i = 0; i < 10; i++) {
-        key_check[i] = 0;
-    }
     for(;;)
-    {
+    {   //
+        // PIN VALUES: 
+        // PINA - 3  - 0x3
+        // PINB - 31 - 0x1f
+        // PIND - 14 - 0xe
 
-        /* wait for keys to be pressed */
-        while ( !( (PINA & 3) | (PINB & 15) | (PIND & 28) ) );
-
-        if (!(PINB & (1 << PB0)) && key_check[0]) {    // is switch closed?
-            TransmitByte('0');     // switch is closed, transmit key
-            TransmitByte('2');
-            key_check[0] = 1;
+        /* This is true if none of the keys are pressed */
+        if (!(~PINA & 0x3) & !(~PINB & 0x1f) & !(~PIND & 0xe)){
+            /* If none of the keys are pressed, AND if there's 
+               something stored in key_state, then this next bit 
+               comes into play */
+            if (key_state != 0) {
+                /* This passes key_state to TransmitKeys to be relayed to the
+                    bluetooth module, then resets the value to 0 */
+                TransmitKeys(key_state);
+                key_state = 0;
+            }
         }
-        if (!(PINB & (1 << PB1)) && key_check[1]) {    // is switch closed??
-            TransmitByte('0');     // switch is closed, transmit key
-            TransmitByte('3');
-            key_check[1] = 1;
-        }
-        if (!(PINB & (1 << PB2)) && key_check[2]) {    // is switch closed?
-            TransmitByte('0');     // switch is closed, transmit key
-            TransmitByte('4');
-            key_check[2] = 1;
-        }
-        if (!(PINB & (1 << PB3)) && key_check[3]) {    // is switch closed?
-            TransmitByte('0');     // switch is closed, transmit key
-            TransmitByte('5');
-            key_check[3] = 1;
-        }
-        if (!(PIND & (1 << PD3)) && key_check[4]) {    // is switch closed?
-            TransmitByte('0');     // switch is closed, transmit key
-            TransmitByte('6');
-            key_check[4] = 1;
-        }
-        if (!(PIND & (1 << PD4)) && key_check[5]) {    // is switch closed?
-            TransmitByte('0');     // switch is closed, transmit key
-            TransmitByte('7');
-            key_check[5] = 1;
-        }
-        if (!(PIND & (1 << PD2)) && key_check[6]) {    // is switch closed?
-            TransmitByte('0');      // switch is closed, transmit key
-            TransmitByte('8');
-            key_check[6] = 1;
-        }
-        if (!(PINB & (1 << PB4)) && key_check[7]) {    // is switch open?
-            TransmitByte('0');      // switch is closed, transmit key
-            TransmitByte('9');
-            key_check[7] = 1;
-        }
-        if (!(PINA & (1 << PA1)) && key_check[8]) {    // is switch open?
-            TransmitByte('0');      // switch is closed, transmit key
-            TransmitByte('a');
-            key_check[8] = 1;
-        }
-        if (!(PINA & (1 << PA0)) && key_check[9]) {    // is switch open?
-            TransmitByte('0');      // switch is closed, transmit key
-            TransmitByte('b');
-            key_check[9] = 1;
-        }
-
-        if ( (PINB & (1 << PB0)) && key_check[0] ){
-            TransmitByte('8');
-            TransmitByte('2');
-            key_check[0] = 0;
-        }
-        if ( (PINB & (1 << PB1)) && key_check[1] ){
-            TransmitByte('8');
-            TransmitByte('3');
-            key_check[1] = 0;
-        }
-        if ( (PINB & (1 << PB2)) && key_check[2] ){
-            TransmitByte('8');
-            TransmitByte('4');
-            key_check[2] = 0;
-        }
-        if ( (PINB & (1 << PB3)) && key_check[3] ){
-            TransmitByte('8');
-            TransmitByte('5');
-            key_check[3] = 0;
-        }
-        if ( (PIND & (1 << PD3)) && key_check[4] ){
-            TransmitByte('8');
-            TransmitByte('6');
-            key_check[4] = 0;
-        }
-        if ( (PIND & (1 << PD4)) && key_check[5] ){
-            TransmitByte('8');
-            TransmitByte('7');
-            key_check[5] = 0;
-        }
-        if ( (PIND & (1 << PD2)) && key_check[6] ){
-            TransmitByte('8');
-            TransmitByte('8');
-            key_check[6] = 0;
-        }
-        if ( (PINB & (1 << PB4)) && key_check[7] ){
-            TransmitByte('8');
-            TransmitByte('9');
-            key_check[7] = 0;
-        }
-        if ( (PINA & (1 << PA1)) && key_check[8] ){
-            TransmitByte('8');
-            TransmitByte('a');
-            key_check[8] = 0;
-        }
-        if ( (PINA & (1 << PA0)) && key_check[9] ){
-            TransmitByte('8');
-            TransmitByte('b');
-            key_check[9] = 0;
-        }
-
-        /* Signal End */
+        else {
+            // Delay between a change in the state of the keys and reading the new state
+            Delay();
+            key_state = ReadKeys(key_state);
+        }     
     }
     return 0;
 }
 
-/* Initialize UART */
-void InitUART(unsigned char ubrr_val)
+unsigned int ReadKeys(unsigned int key_state)
 {
-    /* Set the baud rate */
-    UBRRH = (unsigned char)(ubrr_val>>8);
-    UBRRL = (unsigned char)ubrr_val;
-    /* Enable UART receiver and transmitter */
-    UCSRB = ( (1<<RXEN) | (1<<TXEN) );
-    /* Enable U2X (double speed) UART */
-    UCSRA = (1<<U2X) | UCSRA;
+    if (!(PINB & (1 << PB0))) {    // is switch closed?
+        key_state |= (1 << 0);     // switch is closed, save key
+    }
+    if (!(PINB & (1 << PB1))) {    // is switch closed??
+        key_state |= (1 << 1);     // switch is closed, save key
+    }
+    if (!(PINB & (1 << PB2))) {    // is switch closed?
+        key_state |= (1 << 2);     // switch is closed, save key
+    }
+    if (!(PINB & (1 << PB3))) {    // is switch closed?
+        key_state |= (1 << 3);     // switch is closed, save key
+    }
+    if (!(PIND & (1 << PD3))) {    // is switch closed?
+        key_state |= (1 << 4);     // switch is closed, save key
+    }
+    if (!(PIND & (1 << PD4))) {    // is switch closed?
+        key_state |= (1 << 5);     // switch is closed, save key
+    }
+    if (!(PIND & (1 << PD2))) {    // is switch closed?
+        key_state |= (1 << 6);     // switch is closed, save key
+    }
+    if (!(PINB & (1 << PB4))) {    // is switch closed?
+        key_state |= (1 << 7);     // switch is closed, save key
+    }
+    if (!(PINA & (1 << PA1))) {    // is switch closed?
+        key_state |= (1 << 8);     // switch is closed, save key
+    }
+    if (!(PINA & (1 << PA0))) {    // is switch closed?
+        key_state |= (1 << 9);     // switch is closed, save key
+    } 
+    return key_state;
+}
+
+void TransmitKeys(unsigned int key_state)
+{
+    SendString(keyboard_cmd);
+    if (key_state & (1 << 0)) {
+        SendString(zero_message);
+    }
+    if (key_state & (1 << 1)) {
+        SendString(one_message);
+    }
+    if (key_state & (1 << 2)) {
+        SendString(two_message);
+    }
+    if (key_state & (1 << 3)) {
+        SendString(three_message);
+    }
+    if (key_state & (1 << 4)) {
+        SendString(four_message);
+    }
+    if (key_state & (1 << 5)) {
+        SendString(five_message);
+    }
+    if (key_state & (1 << 6)) {
+        SendString(six_message);
+    }
+    if (key_state & (1 << 7)) {
+        SendString(seven_message);
+    }
+    if (key_state & (1 << 8)) {
+        SendString(eight_message);
+    }
+    if (key_state & (1 << 9)) {
+        SendString(nine_message);
+    }
+    SendString(end_string);
+}
+
+void SendString(char message[])
+{ 
+    int i = 0;
+    do {
+        TransmitByte(message[i]);
+        i++;
+    } while (message[i]!='\0');    
 }
 
 void TransmitByte( unsigned char data )
@@ -255,4 +293,25 @@ void TransmitByte( unsigned char data )
     while ( !(UCSRA & (1<<UDRE)) );
     /* Start transmission */
     UDR = data;
+}
+
+unsigned char ReceiveByte(void)
+{
+    /* Wait for incoming data */
+    while ( !(UCSRA & (1<<RXC)) );
+    /* Return the data */
+    return UDR;
+}
+
+void Delay(void)
+{
+    /* This delay is inserted after a change in the key state 
+    is detected but before we process and transmit the result.
+    Interval for a baud rate of 9600 should be ~= 5 ms, which is the 
+    amount of time recommended by:
+    "AVR243: Matrix Keyboard Decoder", pg 6:
+    http://ww1.microchip.com/downloads/en/Appnotes/doc2532.pdf
+    */
+    volatile unsigned int del = 50;
+    while(del--);
 }
