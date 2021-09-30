@@ -78,24 +78,20 @@ unsigned int ReadKeys(unsigned int key_state);
 void TransmitKeys(unsigned int key_state);
 void SendString(char message[]);
 void TransmitByte(unsigned char data);
+void SendRep(unsigned int key_state);
 // Receiving reply over UART
 unsigned char ReceiveByte(void);
 // Utility
 void Delay(void);
+void SendNL(void);
 
 unsigned int key_state = 0;
-char zero_message[6] = {'k', 'e', 'y', ' ', '0', '\0'};
-char one_message[6] = {'k', 'e', 'y', ' ', '1', '\0'};
-char two_message[6] = {'k', 'e', 'y', ' ', '2', '\0'};
-char three_message[6] = {'k', 'e', 'y', ' ', '3', '\0'};
-char four_message[6] = {'k', 'e', 'y', ' ', '4', '\0'};
-char five_message[6] = {'k', 'e', 'y', ' ', '5', '\0'};
-char six_message[6] = {'k', 'e', 'y', ' ', '6', '\0'};
-char seven_message[6] = {'k', 'e', 'y', ' ', '7', '\0'};
-char eight_message[6] = {'k', 'e', 'y', ' ', '8', '\0'};
-char nine_message[6] = {'k', 'e', 'y', ' ', '9', '\0'};
-
+// AT Command to send a string as a BLE Keyboard 
 char keyboard_cmd[16] = {'A','T','+','B','L','E','K','E','Y','B','O','A','R','D','=', '\0'};
+// AT Command to send a keycode
+char keycode_cmd[20] = {'A','T','+','B','L','E','K','E','Y','B','O','A','R','D','C','O','D','E','=','\0'};
+
+// the string "\r\n" is what tells the Bluefruit module that the command is finished 
 char end_string[3] = {'\r', '\n', '\0'};
 
 /* Initialize UART */
@@ -184,10 +180,11 @@ int main(void)
         // PIN VALUES: 
         // PINA - 3  - 0x3
         // PINB - 31 - 0x1f
-        // PIND - 14 - 0xe
+        //  ////PIND - 14 - 0xe
+        // PIND - 28 - 0x1c
 
         /* This is true if none of the keys are pressed */
-        if (!(~PINA & 0x3) & !(~PINB & 0x1f) & !(~PIND & 0xe)){
+        if (!(~PINA & 0x3) & !(~PINB & 0x1f) & !(~PIND & 0x1c)){
             /* If none of the keys are pressed, AND if there's 
                something stored in key_state, then this next bit 
                comes into play */
@@ -245,36 +242,35 @@ unsigned int ReadKeys(unsigned int key_state)
 void TransmitKeys(unsigned int key_state)
 {
     SendString(keyboard_cmd);
-    if (key_state & (1 << 0)) {
-        SendString(zero_message);
+    SendRep(key_state);
+    SendString(end_string);
+    SendNL();
+}
+
+void SendRep(unsigned int key_state)
+{
+    int i;
+    for( i = 0; i < 10; i = i + 1 ){
+        if(key_state & (1 << i)){
+            TransmitByte('1');
+        }
+        else{
+            TransmitByte('0');
+        }
     }
-    if (key_state & (1 << 1)) {
-        SendString(one_message);
-    }
-    if (key_state & (1 << 2)) {
-        SendString(two_message);
-    }
-    if (key_state & (1 << 3)) {
-        SendString(three_message);
-    }
-    if (key_state & (1 << 4)) {
-        SendString(four_message);
-    }
-    if (key_state & (1 << 5)) {
-        SendString(five_message);
-    }
-    if (key_state & (1 << 6)) {
-        SendString(six_message);
-    }
-    if (key_state & (1 << 7)) {
-        SendString(seven_message);
-    }
-    if (key_state & (1 << 8)) {
-        SendString(eight_message);
-    }
-    if (key_state & (1 << 9)) {
-        SendString(nine_message);
-    }
+}
+
+void SendNL()
+{
+    char keycode_str[21] = {'0','0','-','0','0','-','2','4','-','0','8','-','0','0','-','0','0','-','0','0','\0'};
+    char finish[6] = {'0','0','-','0','0','\0'};
+    // send newline
+    SendString(keycode_cmd);
+    SendString(keycode_str);
+    SendString(end_string);
+    // send release sequence
+    SendString(keycode_cmd);
+    SendString(finish);
     SendString(end_string);
 }
 
