@@ -1,15 +1,19 @@
-import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
-import sys 
+""" Program for producing keyer states, displaying them to the user, and then
+measuring the amount of time until the user presses and releases the keys shown.
+These will then be saved somewhere.
+"""
+import sys
 import random
 import itertools
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 
 def state_generator():
     """ Input:
             None
         Output:
             The state of the keyer can be represented by the state of each
-            of its physical keys. 
+            of its physical keys.
             There are two keys per finger, which means that each finger can
             cause one of three states to occur:
                 - key 1 depressed
@@ -19,30 +23,29 @@ def state_generator():
             accidentally pressed at the same time as key 2, and it's treated the same
             as if just key 2 is pressed)
 
-            This means that the state of the keyer can be represented by 5 numbers, 
+            This means that the state of the keyer can be represented by 5 numbers,
             each with a value of 0,1, or 2.
 
-            We want to get the state of all the keys, but we want to do it in a 
-            way that covers the different valid key combinations in a more or less 
-            uniform way, so this will act as a generator which produces each of the 242 
-            key combinations (0,0,0,0,0 isn't very useful, so we'll skip it) in a random 
-            order before beginning again. 
+            We want to get the state of all the keys, but we want to do it in a
+            way that covers the different valid key combinations in a more or less
+            uniform way, so this will act as a generator which produces each of the 242
+            key combinations (0,0,0,0,0 isn't very useful, so we'll skip it) in a random
+            order before beginning again.
             Note that the generator will continue generating states indefinitely.
     """
-    combos = [i for i in itertools.product([0,1,2],repeat=5)][1:]
+    combos = [i for i in itertools.product([0, 1, 2], repeat=5)][1:]
     random.shuffle(combos)
     while True:
         for keyer_state in combos:
             yield keyer_state
         random.shuffle(combos)
-    
 
 def get_key_dict():
     """ Input:
             None
         Output:
             A dictionary whose keys are fingers.
-            The values are a dictionary of rectangles which represent 
+            The values are a dictionary of rectangles which represent
             the two physical keys of the keyer, as well as "none" which
             we use to represent the state in which neither key is pressed.
     """
@@ -75,27 +78,35 @@ def get_key_dict():
     }
     return key_dict
 
-def on_press(event):
-    print('press', event.key)
-    sys.stdout.flush()
-    if event.key == 'x':
-        print('Boop!')
 
-fig, ax = plt.subplots()
-cid = ax.figure.canvas.mpl_connect('key_press_event', on_press)
+# def on_press(event):
+#     pass 
 
-keys = [
-    Rectangle((.1, .1), .1, .18),   # pinky key 1
-    Rectangle((.1, .32), .1, .15),  # pinky 1 key 2
-    Rectangle((.22, .2), .1, .18),  # ring finger, key 1
-    Rectangle((.22, .42), .1, .15), # ring finger, key 2
-    Rectangle((.34, .25), .1, .18), # middle finger, key 1
-    Rectangle((.34, .47), .1, .15), # middle finger, key 2
-    Rectangle((.46, .22), .1, .18), # pointer finger, key 1
-    Rectangle((.46, .44), .1, .15), # pointer finger, key 2
-    Rectangle((.6, .13), .1, .12),  # thumb, key 1
-    Rectangle((.67, .3), .1, .12),  # thumb, key 2
-]
-for key in keys:
-    ax.add_patch(key)
-plt.show()
+if __name__ == '__main__':
+
+    keys = []
+    def on_press(event):
+        print('press', event.key)
+        sys.stdout.flush()
+        if event.key == 'x':
+            print('Boop!')
+        keys.append(event.key)
+        
+    fig, ax = plt.subplots()
+    cid = ax.figure.canvas.mpl_connect('key_press_event', on_press)
+
+    keys = [
+        Rectangle((.1, .1), .1, .18),   # pinky key 1
+        Rectangle((.1, .32), .1, .15),  # pinky 1 key 2
+        Rectangle((.22, .2), .1, .18),  # ring finger, key 1
+        Rectangle((.22, .42), .1, .15), # ring finger, key 2
+        Rectangle((.34, .25), .1, .18), # middle finger, key 1
+        Rectangle((.34, .47), .1, .15), # middle finger, key 2
+        Rectangle((.46, .22), .1, .18), # pointer finger, key 1
+        Rectangle((.46, .44), .1, .15), # pointer finger, key 2
+        Rectangle((.6, .13), .1, .12),  # thumb, key 1
+        Rectangle((.67, .3), .1, .12),  # thumb, key 2
+    ]
+    for key in keys:
+        ax.add_patch(key)
+    plt.show()
