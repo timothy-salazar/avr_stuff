@@ -73,7 +73,7 @@
 void InitUART(unsigned char ubrr_val);
 void InitPins(void);
 // Read state of keys
-unsigned int ReadKeys(unsigned int key_state);
+unsigned int ReadKeys();
 // Sending keys over UART to Bluefruit
 void TransmitKeys(unsigned int key_state);
 void SendString(char message[]);
@@ -86,6 +86,7 @@ void Delay(void);
 void SendNL(void);
 
 unsigned int key_state = 0;
+unsigned int new_key_state = 0;
 // AT Command to send a string as a BLE Keyboard 
 char keyboard_cmd[16] = {'A','T','+','B','L','E','K','E','Y','B','O','A','R','D','=', '\0'};
 // AT Command to send a keycode
@@ -195,48 +196,57 @@ int main(void)
                 key_state = 0;
             }
         }
+
         else {
-            // Delay between a change in the state of the keys and reading the new state
-            Delay();
-            key_state = ReadKeys(key_state);
-        }     
+            if (key_state != ReadKeys()) {
+                // Delay between a change in the state of the keys and reading the new state
+                Delay();
+                new_key_state = ReadKeys();
+                // This returns true if the new key state contains bits set to 1
+                // which are set to 0 in the old key state
+                if ((key_state^(key_state^new_key_state)) > key_state){
+                    key_state = new_key_state;
+                }
+            }
+        }
     }
     return 0;
 }
 
-unsigned int ReadKeys(unsigned int key_state)
+unsigned int ReadKeys()
 {
+    unsigned int current_state = 0;
     if (!(PINB & (1 << PB0))) {    // is switch closed?
-        key_state |= (1 << 0);     // switch is closed, save key
+        current_state |= (1 << 0);     // switch is closed, save key
     }
     if (!(PINB & (1 << PB1))) {    // is switch closed??
-        key_state |= (1 << 1);     // switch is closed, save key
+        current_state |= (1 << 1);     // switch is closed, save key
     }
     if (!(PINB & (1 << PB2))) {    // is switch closed?
-        key_state |= (1 << 2);     // switch is closed, save key
+        current_state |= (1 << 2);     // switch is closed, save key
     }
     if (!(PINB & (1 << PB3))) {    // is switch closed?
-        key_state |= (1 << 3);     // switch is closed, save key
+        current_state |= (1 << 3);     // switch is closed, save key
     }
     if (!(PIND & (1 << PD3))) {    // is switch closed?
-        key_state |= (1 << 4);     // switch is closed, save key
+        current_state |= (1 << 4);     // switch is closed, save key
     }
     if (!(PIND & (1 << PD4))) {    // is switch closed?
-        key_state |= (1 << 5);     // switch is closed, save key
+        current_state |= (1 << 5);     // switch is closed, save key
     }
     if (!(PIND & (1 << PD2))) {    // is switch closed?
-        key_state |= (1 << 6);     // switch is closed, save key
+        current_state |= (1 << 6);     // switch is closed, save key
     }
     if (!(PINB & (1 << PB4))) {    // is switch closed?
-        key_state |= (1 << 7);     // switch is closed, save key
+        current_state |= (1 << 7);     // switch is closed, save key
     }
     if (!(PINA & (1 << PA1))) {    // is switch closed?
-        key_state |= (1 << 8);     // switch is closed, save key
+        current_state |= (1 << 8);     // switch is closed, save key
     }
     if (!(PINA & (1 << PA0))) {    // is switch closed?
-        key_state |= (1 << 9);     // switch is closed, save key
+        current_state |= (1 << 9);     // switch is closed, save key
     } 
-    return key_state;
+    return current_state;
 }
 
 void TransmitKeys(unsigned int key_state)
@@ -262,7 +272,7 @@ void SendRep(unsigned int key_state)
 
 void SendNL()
 {
-    char keycode_str[21] = {'0','0','-','0','0','-','2','4','-','0','8','-','0','0','-','0','0','-','0','0','\0'};
+    char keycode_str[21] = {'0','0','-','0','0','-','2','8','-','0','0','-','0','0','-','0','0','-','0','0','\0'};
     char finish[6] = {'0','0','-','0','0','\0'};
     // send newline
     SendString(keycode_cmd);
