@@ -7,6 +7,7 @@ import random
 import itertools
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
+from datetime import datetime
 import time
 
 
@@ -55,7 +56,7 @@ def get_key_dict():
         0:{
             0: None,
             1: Rectangle((.1, .1), .1, .18),   # pinky key 1
-            2: Rectangle((.1, .32), .1, .15),  # pinky 1 key 2
+            2: Rectangle((.1, .32), .1, .15),  # pinky key 2
             },
         1:{
             0: None,
@@ -119,55 +120,121 @@ def save_results(results, filepath='results.csv'):
     with open(filepath, 'a') as f:
         f.write(f"{results['state']},{results['misses']},{results['time']}\n")
 
+def check_keyer_state(keyer_state, key_values):
 
-if __name__ == '__main__':
+    # Convert key_values to the same format as 
+    # keyer_state 
+    user_state = []
+    for i in range(0,9,2):
+        x = [int(j) for j in key_values[i:i+2]]
+        if sum(x) == 2:
+            user_state.append(2)
+        elif x[0] == 1:
+            user_state.append(1)
+        elif x[1] == 1:
+            user_state.append(2)
+        else:
+            user_state.append(0)
+    print('-'*20)
+    print(keyer_state)
+    print(user_state)
+    state_comp = [i==j for i,j in zip(keyer_state, user_state)]
+    return all(state_comp)
 
-    # List representing the key presses that have been received
-    key_values = []
-    # Integer tracking the number of attempts
-    misses = 0
-    # The generator that produces keyer states for us. Will go through all
-    # possible keyer states before repeating
-    sg = state_generator()
+class KeyTracker():
+    def __init__(self):
+        self.sg = state_generator()
+        self.keyer_state = self.sg.__next__()
+        self.misses = 0
+        self.key_values = []
 
-    keyer_state = sg.__next__()
-
-    def on_press(event):
-        """ Input:
-                event: matplotlib key press event
-
-        This function is called when the matplotlib backend detects a key press.
-        When this happens it will add the key that was pressed to the key_values
-        list. When we receive an "enter", we will compare the expected value to
-        the input we received.
-
-        If they match it means that the user successfully reproduced the displayed
-        keyer state. We will save data about the attempt to a file so we can play
-        around with it later
-
-        If they do not match, the program will make note of he fact and will wait for
-        another attempt.
-
-
-        """
+    def on_press(self, event):
         print('press', event.key)
         sys.stdout.flush()
         if event.key == 'x':
             print('Boop!')
+
         if event.key == 'enter':
-            print(key_values)
-            
-        key_values.append(event.key)
-        keyer_state = sg.__next__()
-        results = dict()
-        display_keyer_state(ax, key_dict, keyer_state)
+            print(self.key_values)
+
+            # Check to see if we have the correct keyer state
+            if check_keyer_state(self.keyer_state, self.key_values):
+                stats = {
+                    "state":self.keyer_state,
+                    "misses":self.misses,
+                    "time": datetime.now() - start_time,
+                }
+                self.misses = 0
+                save_results(stats)
+                self.keyer_state = self.sg.__next__()
+                display_keyer_state(ax, key_dict, self.keyer_state)
+            else:
+                self.misses += 1
+                self.key_values.clear()
+        else:
+            self.key_values.append(event.key)
+
+if __name__ == '__main__':
+
+    # List representing the key presses that have been received
+    # key_values = []
+    # Integer tracking the number of attempts
+    # misses = 0
+    # The generator that produces keyer states for us. Will go through all
+    # possible keyer states before repeating
+    kv = KeyTracker()
+    
+
+    # def on_press(event, key_values=key_values, 
+    #     misses=misses, keyer_state=keyer_state):
+    #     """ Input:
+    #             event: matplotlib key press event
+
+    #     This function is called when the matplotlib backend detects a key press.
+    #     When this happens it will add the key that was pressed to the key_values
+    #     list. When we receive an "enter", we will compare the expected value to
+    #     the input we received.
+
+    #     If they match it means that the user successfully reproduced the displayed
+    #     keyer state. We will save data about the attempt to a file so we can play
+    #     around with it later
+
+    #     If they do not match, the program will make note of he fact and will wait for
+    #     another attempt.
+
+
+    #     """
+    #     print('press', event.key)
+    #     sys.stdout.flush()
+    #     if event.key == 'x':
+    #         print('Boop!')
+
+    #     if event.key == 'enter':
+    #         print(key_values)
+
+    #         # Check to see if we have the correct keyer state
+    #         if check_keyer_state(keyer_state, key_values):
+    #             stats = {
+    #                 "state":keyer_state,
+    #                 "misses":misses,
+    #                 "time": datetime.now() - start_time,
+    #             }
+    #             misses = 0
+    #             save_results(stats)
+    #             keyer_state = sg.__next__()
+    #             display_keyer_state(ax, key_dict, keyer_state)
+    #         else:
+    #             misses += 1
+    #             key_values.clear()
+    #     else:
+    #         key_values.append(event.key)
+    #     return key_values, misses, keyer_state
+
 
     fig, ax = plt.subplots()
-    cid = ax.figure.canvas.mpl_connect('key_press_event', on_press)
+    cid = ax.figure.canvas.mpl_connect('key_press_event', kv.on_press)
     key_dict = draw_keyer(ax)
-    display_keyer_state(ax, key_dict, keyer_state)
-        
-
+    display_keyer_state(ax, key_dict, kv.keyer_state)
+    start_time = datetime.now()
     plt.show()
 
-    

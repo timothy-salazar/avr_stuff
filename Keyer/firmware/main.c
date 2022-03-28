@@ -216,36 +216,47 @@ int main(void)
 unsigned int ReadKeys()
 {
     unsigned int current_state = 0;
-    if (!(PINB & (1 << PB0))) {    // is switch closed?
-        current_state |= (1 << 0);     // switch is closed, save key
+    if (!(PIND & (1 << PD2))) {     // is pinky 1 switch closed?
+        current_state |= (1 << 0);  // switch is closed, save key
     }
-    if (!(PINB & (1 << PB1))) {    // is switch closed??
-        current_state |= (1 << 1);     // switch is closed, save key
+    if (!(PIND & (1 << PD4))) {    // is pinky 2 switch closed?
+        current_state |= (1 << 1); // switch is closed, save key
     }
-    if (!(PINB & (1 << PB2))) {    // is switch closed?
-        current_state |= (1 << 2);     // switch is closed, save key
+
+    if (!(PINB & (1 << PB3))) {    // is index 1 switch closed?
+        current_state |= (1 << 2); // switch is closed, save key
     }
-    if (!(PINB & (1 << PB3))) {    // is switch closed?
-        current_state |= (1 << 3);     // switch is closed, save key
+    if (!(PIND & (1 << PD3))) {    // is index 2 switch closed?
+        current_state |= (1 << 3); // switch is closed, save key
     }
-    if (!(PIND & (1 << PD3))) {    // is switch closed?
-        current_state |= (1 << 4);     // switch is closed, save key
-    }
-    if (!(PIND & (1 << PD4))) {    // is switch closed?
+
+    if (!(PINA & (1 << PA0))) {    // is middle 1 switch closed?
+        current_state |= (1 << 4); // switch is closed, save key
+    } 
+
+    if (!(PINB & (1 << PB4))) {    // is middle 2 switch closed?
         current_state |= (1 << 5);     // switch is closed, save key
     }
-    if (!(PIND & (1 << PD2))) {    // is switch closed?
-        current_state |= (1 << 6);     // switch is closed, save key
+
+    if (!(PINA & (1 << PA1))) {    // is pointer 1 switch closed?
+        current_state |= (1 << 6); // switch is closed, save key
     }
-    if (!(PINB & (1 << PB4))) {    // is switch closed?
-        current_state |= (1 << 7);     // switch is closed, save key
+
+    if (!(PINB & (1 << PB0))) {    // is pointer 2 switch closed?
+        current_state |= (1 << 7); // switch is closed, save key
     }
-    if (!(PINA & (1 << PA1))) {    // is switch closed?
-        current_state |= (1 << 8);     // switch is closed, save key
+    if (!(PINB & (1 << PB1))) {    // is thumb 1 switch closed?
+        current_state |= (1 << 8); // switch is closed, save key
     }
-    if (!(PINA & (1 << PA0))) {    // is switch closed?
-        current_state |= (1 << 9);     // switch is closed, save key
-    } 
+
+    if (!(PINB & (1 << PB2))) {    // is thumb 2 switch closed?
+        current_state |= (1 << 9); // switch is closed, save key
+    }
+
+
+
+
+
     return current_state;
 }
 
